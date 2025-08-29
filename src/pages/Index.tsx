@@ -35,8 +35,11 @@ export default function CMSDashboard() {
   const loadData = async () => {
     await loadMediaFiles();
     await loadScreens();
-    updateStats();
   };
+
+  useEffect(() => {
+    updateStats();
+  }, [mediaFiles, screens]);
 
   const loadMediaFiles = async () => {
     const files = await mockBackend.getMediaFiles();
@@ -57,12 +60,10 @@ export default function CMSDashboard() {
 
   const handleMediaUploaded = () => {
     loadMediaFiles();
-    updateStats();
   };
 
   const handleScreenUpdated = () => {
     loadScreens();
-    updateStats();
   };
 
   const folders = ['all', 'promociones', 'eventos', 'productos', 'temporadas'];
