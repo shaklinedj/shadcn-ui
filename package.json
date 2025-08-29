@@ -3,8 +3,9 @@
   "type": "module",
   "packageManager": "pnpm@8.10.0",
   "scripts": {
-    "dev": "concurrently \"vite\" \"tsx src/server/index.ts\"",
+    "dev": "concurrently \"npm:dev:client\" \"npm:dev:server\"",
     "dev:client": "vite",
+    "predev:server": "mkdir -p db uploads",
     "dev:server": "tsx src/server/index.ts",
     "build": "vite build",
     "lint": "eslint --quiet ./src",

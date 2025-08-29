@@ -1,4 +1,4 @@
-// WebSocket client simulation using localStorage events for real-time sync
+// Real WebSocket client
 interface WebSocketMessage {
   type: string;
   data: Record<string, unknown>;
@@ -6,46 +6,62 @@ interface WebSocketMessage {
 }
 
 class WebSocketClient {
+  private ws: WebSocket | null = null;
   private listeners: ((message: WebSocketMessage) => void)[] = [];
   private isConnected = false;
-  private eventListener?: (event: StorageEvent) => void;
+  private reconnectInterval: number = 5000; // 5 seconds
+  private reconnectTimeoutId: NodeJS.Timeout | null = null;
 
   connect(): void {
-    if (this.isConnected) return;
+    if (this.isConnected || this.ws) return;
 
-    // Simulate WebSocket connection using localStorage events
-    this.eventListener = (event: StorageEvent) => {
-      if (event.key === 'cms_websocket_message' && event.newValue) {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.newValue);
-          this.notifyListeners(message);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
+    // Use the port the server is running on
+    const port = 3001;
+    this.ws = new WebSocket(`ws://localhost:${port}`);
+
+    this.ws.onopen = () => {
+      this.isConnected = true;
+      console.log('WebSocket client connected');
+      if (this.reconnectTimeoutId) {
+        clearTimeout(this.reconnectTimeoutId);
+        this.reconnectTimeoutId = null;
       }
     };
 
-    window.addEventListener('storage', this.eventListener);
-    this.isConnected = true;
-    
-    console.log('WebSocket client connected (simulated)');
+    this.ws.onmessage = (event) => {
+      try {
+        const message: WebSocketMessage = JSON.parse(event.data);
+        this.notifyListeners(message);
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    this.ws.onclose = () => {
+      this.isConnected = false;
+      this.ws = null;
+      console.log('WebSocket client disconnected. Attempting to reconnect...');
+      this.reconnectTimeoutId = setTimeout(() => this.connect(), this.reconnectInterval);
+    };
+
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      // onclose will be called next
+    };
   }
 
   disconnect(): void {
-    if (!this.isConnected) return;
-
-    if (this.eventListener) {
-      window.removeEventListener('storage', this.eventListener);
+    if (this.reconnectTimeoutId) {
+      clearTimeout(this.reconnectTimeoutId);
+      this.reconnectTimeoutId = null;
     }
-    
-    this.isConnected = false;
-    this.listeners = [];
-    
-    console.log('WebSocket client disconnected');
+    if (this.ws) {
+      this.ws.close();
+    }
   }
 
   send(message: Omit<WebSocketMessage, 'timestamp'>): void {
-    if (!this.isConnected) {
+    if (!this.isConnected || !this.ws) {
       console.warn('WebSocket not connected, message not sent');
       return;
     }
@@ -55,14 +71,7 @@ class WebSocketClient {
       timestamp: Date.now()
     };
 
-    // Store message in localStorage to trigger storage event
-    localStorage.setItem('cms_websocket_message', JSON.stringify(fullMessage));
-    
-    // Clean up the message after a short delay
-    setTimeout(() => {
-      localStorage.removeItem('cms_websocket_message');
-    }, 100);
-
+    this.ws.send(JSON.stringify(fullMessage));
     console.log('WebSocket message sent:', fullMessage);
   }
 
@@ -114,24 +123,6 @@ class WebSocketClient {
     });
   }
 
-  // Heartbeat mechanism for connection monitoring
-  startHeartbeat(intervalMs: number = 30000): void {
-    if (!this.isConnected) return;
-
-    const heartbeatInterval = setInterval(() => {
-      if (!this.isConnected) {
-        clearInterval(heartbeatInterval);
-        return;
-      }
-
-      this.send({
-        type: 'heartbeat',
-        data: { timestamp: Date.now() }
-      });
-    }, intervalMs);
-  }
-
-  // Connection status
   isConnectionActive(): boolean {
     return this.isConnected;
   }

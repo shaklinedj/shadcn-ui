@@ -1,13 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import fs from 'fs';
 
-const dbDir = path.resolve(process.cwd(), 'db');
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-const dbPath = path.join(dbDir, 'main.db');
+const dbPath = path.resolve(process.cwd(), 'db', 'main.db');
 const db = new Database(dbPath);
 
 // Create tables if they don't exist
