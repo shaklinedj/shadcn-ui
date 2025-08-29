@@ -209,19 +209,31 @@ class DisplayApp {
     async loadContent() {
         try {
             console.log('Loading content for screen:', this.currentScreenId);
+            if (!this.currentScreenId) {
+                this.showWelcomeScreen();
+                return;
+            }
+
+            const allScreens = this.getStoredScreens();
+            const currentScreen = allScreens.find(s => s.id === this.currentScreenId);
+            const assignedFolder = currentScreen?.assignedFolder;
+
+            const allMediaFiles = this.getStoredMediaFiles();
+            let filteredMedia = allMediaFiles;
+
+            if (assignedFolder && assignedFolder !== 'all') {
+                filteredMedia = allMediaFiles.filter(file => file.folder === assignedFolder);
+            }
             
-            // Get media files from localStorage
-            const mediaFiles = this.getStoredMediaFiles();
-            
-            if (mediaFiles.length === 0) {
+            if (filteredMedia.length === 0) {
                 this.showWelcomeScreen();
                 return;
             }
             
-            this.mediaFiles = mediaFiles;
+            this.mediaFiles = filteredMedia;
             this.currentContentIndex = 0;
             
-            console.log(`Loaded ${mediaFiles.length} media files`);
+            console.log(`Loaded ${this.mediaFiles.length} media files for folder "${assignedFolder || 'all'}"`);
             
         } catch (error) {
             console.error('Error loading content:', error);

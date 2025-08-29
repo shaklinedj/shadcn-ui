@@ -17,6 +17,7 @@ export interface Screen {
   resolution: string;
   orientation: 'landscape' | 'portrait';
   status: 'online' | 'offline' | 'maintenance';
+  assignedFolder?: string; // Nuevo campo para la carpeta asignada
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +49,7 @@ interface StoredScreen {
   resolution: string;
   orientation: 'landscape' | 'portrait';
   status: 'online' | 'offline' | 'maintenance';
+  assignedFolder?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -113,6 +115,7 @@ class MockBackend {
           resolution: '1920x1080',
           orientation: 'landscape',
           status: 'online',
+          assignedFolder: 'promociones',
           createdAt: new Date(),
           updatedAt: new Date()
         },
@@ -123,6 +126,7 @@ class MockBackend {
           resolution: '1366x768',
           orientation: 'landscape',
           status: 'online',
+          assignedFolder: 'eventos',
           createdAt: new Date(),
           updatedAt: new Date()
         },
