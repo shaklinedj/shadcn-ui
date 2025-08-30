@@ -99,41 +99,35 @@ export default function MediaUploader({ onMediaUploaded }: MediaUploaderProps) {
     setUploadFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const simulateUpload = async (uploadFile: UploadFile) => {
+  const handleUpload = async (uploadFile: UploadFile) => {
     setUploadFiles(prev => prev.map(f => 
-      f.id === uploadFile.id ? { ...f, status: 'uploading' } : f
+      f.id === uploadFile.id ? { ...f, status: 'uploading', progress: 50 } : f
     ));
 
-    // Simulate upload progress
-    for (let progress = 0; progress <= 100; progress += 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+    try {
+      // Upload to the real backend
+      const mediaFile = await mockBackend.addMediaFile(uploadFile.file);
+
       setUploadFiles(prev => prev.map(f => 
-        f.id === uploadFile.id ? { ...f, progress } : f
+        f.id === uploadFile.id ? { ...f, status: 'completed', progress: 100 } : f
+      ));
+
+      // Notify via WebSocket
+      websocketClient.send({ type: 'media_updated', data: mediaFile });
+
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setUploadFiles(prev => prev.map(f =>
+        f.id === uploadFile.id ? { ...f, status: 'error' } : f
       ));
     }
-
-    // Save to mock backend
-    const mediaFile = await mockBackend.addMediaFile({
-      name: uploadFile.file.name,
-      type: uploadFile.file.type,
-      size: uploadFile.file.size,
-      folder: selectedFolder,
-      url: uploadFile.preview || URL.createObjectURL(uploadFile.file)
-    });
-
-    setUploadFiles(prev => prev.map(f => 
-      f.id === uploadFile.id ? { ...f, status: 'completed' } : f
-    ));
-
-    // Notify via WebSocket
-    websocketClient.send({ type: 'media_updated', data: mediaFile });
   };
 
   const uploadAll = async () => {
     const pendingFiles = uploadFiles.filter(f => f.status === 'pending');
     
     for (const file of pendingFiles) {
-      await simulateUpload(file);
+      await handleUpload(file);
     }
 
     onMediaUploaded();

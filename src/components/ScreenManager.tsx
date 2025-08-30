@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,8 @@ interface ScreenManagerProps {
 export default function ScreenManager({ screens, onScreenUpdated }: ScreenManagerProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingScreen, setEditingScreen] = useState<Screen | null>(null);
+  const [configuringScreen, setConfiguringScreen] = useState<Screen | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     location: '',
@@ -25,12 +27,20 @@ export default function ScreenManager({ screens, onScreenUpdated }: ScreenManage
     orientation: 'landscape' as 'landscape' | 'portrait'
   });
 
+  useEffect(() => {
+    if (configuringScreen) {
+      setSelectedFolder(configuringScreen.assignedFolder || 'all');
+    }
+  }, [configuringScreen]);
+
   const resolutions = [
     { value: '1920x1080', label: 'Full HD (1920x1080)' },
     { value: '3840x2160', label: '4K (3840x2160)' },
     { value: '1366x768', label: 'HD (1366x768)' },
     { value: '1280x720', label: 'HD Ready (1280x720)' }
   ];
+
+  const folders = ['all', 'promociones', 'eventos', 'productos', 'temporadas'];
 
   const handleAddScreen = async () => {
     if (!formData.name || !formData.location) {
@@ -78,6 +88,18 @@ export default function ScreenManager({ screens, onScreenUpdated }: ScreenManage
     resetForm();
   };
 
+  const handleAssignFolder = async () => {
+    if (!configuringScreen) return;
+
+    const updatedScreen = await mockBackend.updateScreen(configuringScreen.id, {
+      assignedFolder: selectedFolder
+    });
+
+    websocketClient.send({ type: 'screen_updated', data: updatedScreen });
+    onScreenUpdated();
+    setConfiguringScreen(null);
+  };
+
   const handleDeleteScreen = async (screenId: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar esta pantalla?')) {
       await mockBackend.deleteScreen(screenId);
@@ -110,6 +132,10 @@ export default function ScreenManager({ screens, onScreenUpdated }: ScreenManage
       resolution: screen.resolution,
       orientation: screen.orientation
     });
+  };
+
+  const openConfigureDialog = (screen: Screen) => {
+    setConfiguringScreen(screen);
   };
 
   const getStatusColor = (status: string) => {
@@ -267,6 +293,41 @@ export default function ScreenManager({ screens, onScreenUpdated }: ScreenManage
         </DialogContent>
       </Dialog>
 
+      {/* Configure Content Dialog */}
+      <Dialog open={!!configuringScreen} onOpenChange={(open) => !open && setConfiguringScreen(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configurar Contenido de Pantalla</DialogTitle>
+            <DialogDescription>
+              Asigna una carpeta de contenido para mostrar en la pantalla "{configuringScreen?.name}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="folder" className="text-right">
+                Carpeta
+              </Label>
+              <Select value={selectedFolder} onValueChange={setSelectedFolder}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecciona una carpeta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder} value={folder}>
+                      {folder === 'all' ? 'Todos los archivos' : folder.charAt(0).toUpperCase() + folder.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setConfiguringScreen(null)} variant="outline">Cancelar</Button>
+            <Button onClick={handleAssignFolder}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Screens Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {screens.map((screen) => (
@@ -296,6 +357,16 @@ export default function ScreenManager({ screens, onScreenUpdated }: ScreenManage
                   <span className="font-medium">Orientación:</span>
                   <p className="text-gray-600">
                     {screen.orientation === 'landscape' ? 'Horizontal' : 'Vertical'}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <span className="font-medium">Contenido Asignado:</span>
+                  <p className="text-gray-600">
+                    {screen.assignedFolder
+                      ? screen.assignedFolder === 'all'
+                        ? 'Todos los archivos'
+                        : screen.assignedFolder.charAt(0).toUpperCase() + screen.assignedFolder.slice(1)
+                      : 'Ninguno'}
                   </p>
                 </div>
               </div>
@@ -334,6 +405,7 @@ export default function ScreenManager({ screens, onScreenUpdated }: ScreenManage
                   variant="ghost"
                   size="sm"
                   className="text-blue-600 hover:text-blue-700"
+                  onClick={() => openConfigureDialog(screen)}
                 >
                   <Settings className="h-4 w-4 mr-1" />
                   Configurar
