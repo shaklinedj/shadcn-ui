@@ -23,7 +23,6 @@ wss.on('connection', (ws) => {
   console.log('Client connected');
 
   ws.on('message', (message: Buffer) => {
-    // When a message is received, broadcast it to all clients.
     console.log('received: %s', message);
     broadcast(message.toString());
   });
@@ -104,19 +103,16 @@ app.post('/api/media', upload.single('file'), (req, res) => {
 app.delete('/api/media/:id', (req, res) => {
   const { id } = req.params;
   try {
-    // First, get the file path from the database
     const file = db.prepare('SELECT path FROM media WHERE id = ?').get(id) as { path: string };
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    // Then, delete the file from the filesystem
     const filePath = path.join(process.cwd(), file.path);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    // Finally, delete the record from the database
     const stmt = db.prepare('DELETE FROM media WHERE id = ?');
     const info = stmt.run(id);
 
