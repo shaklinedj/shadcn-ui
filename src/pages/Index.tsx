@@ -62,6 +62,20 @@ export default function CMSDashboard() {
     loadMediaFiles();
   };
 
+  const handleDeleteMedia = async (id: string) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este archivo?')) {
+      try {
+        await mockBackend.deleteMediaFile(id);
+        // Refresh the media files list
+        await loadMediaFiles();
+        // Optionally, show a success toast/notification here
+      } catch (error) {
+        console.error('Failed to delete media file:', error);
+        // Optionally, show an error toast/notification here
+      }
+    }
+  };
+
   const handleScreenUpdated = () => {
     loadScreens();
   };
@@ -204,10 +218,18 @@ export default function CMSDashboard() {
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       {filteredFiles.map((file) => (
                         <div key={file.id} className="group relative">
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                            onClick={() => handleDeleteMedia(file.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                           <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
                             {file.type.startsWith('image/') ? (
                               <img
-                                src={file.url}
+                                src={file.path || file.url}
                                 alt={file.name}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                               />
@@ -223,7 +245,7 @@ export default function CMSDashboard() {
                               <Badge variant="secondary" className="text-xs">
                                 {file.type.startsWith('image/') ? 'IMG' : 'VID'}
                               </Badge>
-                              <span className="text-xs text-gray-500">{formatFileSize(file.size)}</span>
+                              <span className="text-xs text-gray-500">{formatFileSize(file.size || 0)}</span>
                             </div>
                           </div>
                         </div>
